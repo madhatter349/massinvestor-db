@@ -9,6 +9,34 @@ from flask import Flask, abort, g, render_template, request
 
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "massinvestor.db"))
 
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS firms (
+    name TEXT PRIMARY KEY,
+    type_key TEXT,
+    website TEXT,
+    offices TEXT,
+    stages TEXT,
+    industries TEXT,
+    description TEXT,
+    team_json TEXT,
+    funding_json TEXT,
+    portfolio_json TEXT,
+    news_json TEXT,
+    crawled_at TEXT
+);
+"""
+
+
+def init_db():
+    os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.executescript(SCHEMA)
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
 app = Flask(__name__)
 
 TYPE_LABELS = {

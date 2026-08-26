@@ -4,7 +4,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY templates ./templates
-COPY massinvestor.db .
 EXPOSE 5000
 ENV DB_PATH=/app/massinvestor.db
 CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000"]
