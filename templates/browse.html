@@ -1,28 +1,83 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 style="margin-bottom:1rem;">Browse firms <span class="muted">({{ total }})</span></h2>
-<form method="get" style="margin-bottom:1rem;display:flex;gap:.5rem;">
-  <input type="text" name="q" value="{{ q }}" placeholder="Search name, description, website..."
-         style="flex:1;background:#0b1220;border:1px solid var(--border);color:var(--text);padding:.6rem .8rem;border-radius:8px;">
-  <button type="submit" style="background:var(--accent);border:none;color:#0f172a;font-weight:600;padding:.6rem 1.2rem;border-radius:8px;cursor:pointer;">Search</button>
-</form>
-<div class="card">
-  <table>
-    <tr><th>Firm</th><th>Type</th><th>Location</th><th>Team</th><th>Portfolio</th></tr>
-    {% for f in firms %}
-    <tr>
-      <td><a href="/firm/{{ f.name|urlencode }}">{{ f.name }}</a></td>
-      <td><span class="pill">{{ f.type_label }}</span></td>
-      <td class="muted">{{ f.offices[:2]|join(', ') }}</td>
-      <td>{{ f.team|length }}</td>
-      <td>{{ f.portfolio|length }}</td>
-    </tr>
-    {% endfor %}
-  </table>
-</div>
-<div style="margin-top:1rem;display:flex;gap:1rem;align-items:center;">
-  {% if page > 1 %}<a href="/browse?q={{ q }}&page={{ page-1 }}">&larr; Prev</a>{% endif %}
-  <span class="muted">Page {{ page }} / {{ pages }}</span>
-  {% if page < pages %}<a href="/browse?q={{ q }}&page={{ page+1 }}">Next &rarr;</a>{% endif %}
-</div>
+
+<section class="section-pad">
+  <div class="section-inner">
+    <div class="section-index">02 / BROWSE</div>
+    <div class="section-head">
+      <h2>Search all <em class="serif">{{ "{:,}".format(total) }} firms.</em></h2>
+    </div>
+
+    <form method="get" class="search-box" style="margin-top:36px;">
+      <div class="search-row">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search name, description, website…" aria-label="Search firms">
+        <button type="submit" class="btn-primary">Search →</button>
+      </div>
+    </form>
+
+    <div class="table-shell" style="margin-top:30px;">
+      <div class="table-toolbar">
+        <span class="tt-title"><em>{{ "{:,}".format(total) }}</em> records{% if q %} · matching “{{ q }}”{% endif %}</span>
+        <span class="tt-title" style="color:var(--text-dim-dark);">Sorted A → Z</span>
+      </div>
+      <table class="data">
+        <thead><tr><th>Firm</th><th>Type</th><th>Location</th><th>Team</th><th>Portfolio</th></tr></thead>
+        <tbody>
+          {% for f in firms %}
+          <tr>
+            <td><a class="firm-name" href="/firm/{{ f.name|urlencode }}">{{ f.name }}</a></td>
+            <td><span class="pill">{{ f.type_label }}</span></td>
+            <td style="color:var(--muted);font-size:13px;">{{ f.offices[:2]|join(', ') }}</td>
+            <td class="mono-num">{{ f.team|length }}</td>
+            <td class="mono-num">{{ f.portfolio|length }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center;padding:44px;font:600 13px var(--font-machine);color:var(--muted);">No firms match that query.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if pages > 1 %}
+    <nav class="pagination" aria-label="Pagination" style="margin-top:30px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      {% if page > 1 %}<a class="page-btn" href="/browse?q={{ q }}&page={{ page-1 }}">←</a>{% endif %}
+      {% set start = [1, page-3]|max %}
+      {% set end = [pages, page+3]|min %}
+      {% if start > 1 %}<span class="page-ellipsis">…</span>{% endif %}
+      {% for p in range(start, end+1) %}
+        {% if p == page %}
+          <span class="page-btn page-active">{{ p }}</span>
+        {% else %}
+          <a class="page-btn" href="/browse?q={{ q }}&page={{ p }}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if end < pages %}<span class="page-ellipsis">…</span>{% endif %}
+      {% if page < pages %}<a class="page-btn" href="/browse?q={{ q }}&page={{ page+1 }}">→</a>{% endif %}
+    </nav>
+    {% endif %}
+  </div>
+</section>
+
+<style>
+.search-row{display:flex;gap:14px;}
+.search-row input{
+  flex:1;background:var(--paper-raise);border:1px solid var(--ink);
+  box-shadow:var(--shadow-sm);
+  color:var(--ink);font-family:var(--font-human);font-size:16px;
+  padding:13px 16px;
+}
+.search-row input:focus{outline:3px solid var(--orange);outline-offset:2px;}
+.page-btn{
+  font:700 12px var(--font-machine);
+  background:var(--paper-raise);border:1px solid var(--ink);
+  box-shadow:2px 2px 0 var(--ink);
+  padding:8px 12px;text-decoration:none;color:var(--ink);
+  transition:box-shadow .16s,transform .16s,background .16s;
+}
+.page-btn:hover{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink);}
+.page-active{background:var(--lime);color:var(--ink);font-weight:700;}
+.page-ellipsis{font:700 12px var(--font-machine);color:var(--muted);padding:0 4px;}
+@media(max-width:560px){.search-row{flex-direction:column;}.search-row .btn-primary{width:100%;}}
+</style>
+
 {% endblock %}

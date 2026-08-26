@@ -1,89 +1,193 @@
 {% extends "base.html" %}
+{% block title %}{{ firm.name }} — Investment Firm{% endblock %}
 {% block content %}
-<a href="/browse" class="muted">&larr; Back</a>
-<div class="card" style="margin-top:1rem;">
-  <h1 style="font-size:1.6rem;">{{ firm.name }}</h1>
-  <div style="margin-top:.5rem;">
-    <span class="pill">{{ firm.type_label }}</span>
-    {% if firm.website %}<a href="{{ firm.website }}" target="_blank" rel="noopener" class="muted" style="margin-left:.75rem;">{{ firm.website }}</a>{% endif %}
+
+<section class="section-pad">
+  <div class="section-inner">
+    <a class="btn-secondary" href="/browse" style="margin-bottom:30px;display:inline-block;">← Back to browse</a>
+
+    <!-- FIRM HEADER CARD -->
+    <div class="firm-hero" style="margin-top:10px;">
+      <div class="firm-hero-main">
+        <span class="eyebrow"><span class="dot"></span> Firm Profile</span>
+        <h1 style="font-size:clamp(40px,5vw,72px);font-weight:800;letter-spacing:-.06em;line-height:.95;margin:14px 0 18px;">{{ firm.name }}</h1>
+        <div class="firm-meta">
+          <span class="pill pill-dark">{{ firm.type_label }}</span>
+          {% if firm.website %}
+          <a class="firm-web" href="{{ firm.website }}" target="_blank" rel="noopener">↗ {{ firm.website|replace("https://","")|replace("http://","") }}</a>
+          {% endif %}
+        </div>
+        {% if firm.description %}
+        <p class="firm-desc">{{ firm.description }}</p>
+        {% endif %}
+      </div>
+      <div class="firm-side">
+        <div class="data-card" style="justify-self:stretch;width:100%;transform:none;">
+          <div class="data-card-head">
+            <span class="data-card-file">{{ firm.name[:18] }}.firm</span>
+            <span class="status-live">In database</span>
+          </div>
+          <div class="data-card-figure">
+            {{ firm.team|length }}
+            <small>Team members</small>
+          </div>
+          <div class="data-card-facts">
+            <div class="fact"><div class="fact-label">Portfolio</div><div class="fact-value">{{ firm.portfolio|length }}</div></div>
+            <div class="fact"><div class="fact-label">Funding</div><div class="fact-value">{{ firm.funding|length }}</div></div>
+            <div class="fact"><div class="fact-label">News</div><div class="fact-value">{{ firm.news|length }}</div></div>
+            <div class="fact"><div class="fact-label">Crawled</div><div class="fact-value">{{ firm.crawled_at[5:16] if firm.crawled_at }}</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+</section>
 
-{% if firm.offices %}
-<div class="card" style="margin-top:1rem;">
-  <h2>Offices</h2>
-  <p class="muted" style="margin-top:.5rem;">{{ firm.offices|join(', ') }}</p>
-</div>
-{% endif %}
+<!-- OFFICES + STAGES + INDUSTRIES -->
+<section class="section-pad" style="border-top:1px solid var(--ink);">
+  <div class="section-inner">
+    <div class="section-index">01 / AT A GLANCE</div>
+    <div class="detail-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(16px,2vw,30px);">
+      <div class="panel">
+        <h3>Offices <em class="serif">located</em></h3>
+        {% if firm.offices %}
+        <ul class="plain-list">
+          {% for o in firm.offices %}<li>{{ o }}</li>{% endfor %}
+        </ul>
+        {% else %}<p class="muted-para">No public office data.</p>{% endif %}
+      </div>
+      <div class="panel">
+        <h3>Stages <em class="serif">targeted</em></h3>
+        {% if firm.stages %}
+        <div class="chip-row">
+          {% for s in firm.stages %}<span class="pill">{{ s }}</span>{% endfor %}
+        </div>
+        {% else %}<p class="muted-para">No stage data.</p>{% endif %}
+      </div>
+      <div class="panel">
+        <h3>Industries <em class="serif">covered</em></h3>
+        {% if firm.industries %}
+        <div class="chip-row">
+          {% for i in firm.industries %}<span class="pill">{{ i }}</span>{% endfor %}
+        </div>
+        {% else %}<p class="muted-para">No industry data.</p>{% endif %}
+      </div>
+    </div>
+  </div>
+</section>
 
-{% if firm.stages %}
-<div class="card" style="margin-top:1rem;">
-  <h2>Stages</h2>
-  <div class="chips" style="margin-top:.5rem;">{% for s in firm.stages %}<span class="chip">{{ s }}</span>{% endfor %}</div>
-</div>
-{% endif %}
-
-{% if firm.industries %}
-<div class="card" style="margin-top:1rem;">
-  <h2>Industries</h2>
-  <div class="chips" style="margin-top:.5rem;">{% for i in firm.industries %}<span class="chip">{{ i }}</span>{% endfor %}</div>
-</div>
-{% endif %}
-
-{% if firm.description %}
-<div class="card" style="margin-top:1rem;">
-  <h2>Description</h2>
-  <p style="margin-top:.5rem;color:var(--muted);">{{ firm.description }}</p>
-</div>
-{% endif %}
-
+<!-- TEAM -->
 {% if firm.team %}
-<div class="card" style="margin-top:1rem;">
-  <h2>Investment Team <span class="muted">({{ firm.team|length }})</span></h2>
-  <table style="margin-top:.5rem;">
-    <tr><th>Name</th><th>Title</th></tr>
-    {% for m in firm.team %}
-    <tr><td>{{ m.name }}</td><td class="muted">{{ m.title }}</td></tr>
-    {% endfor %}
-  </table>
-</div>
-{% endif %}
-
-{% if firm.funding %}
-<div class="card" style="margin-top:1rem;">
-  <h2>Recent Funding Events <span class="muted">({{ firm.funding|length }})</span></h2>
-  <table style="margin-top:.5rem;">
-    <tr><th>Date</th><th>Company</th><th>State</th><th>Amount</th><th>Stage</th></tr>
-    {% for e in firm.funding %}
-    <tr>
-      <td class="muted">{{ e.date }}</td>
-      <td>{{ e.name }}</td>
-      <td>{{ e.state }}</td>
-      <td>{{ e.amount }}</td>
-      <td><span class="pill">{{ e.stage }}</span></td>
-    </tr>
-    {% endfor %}
-  </table>
-</div>
-{% endif %}
-
-{% if firm.portfolio %}
-<div class="card" style="margin-top:1rem;">
-  <h2>Portfolio Companies <span class="muted">({{ firm.portfolio|length }})</span></h2>
-  <div class="chips" style="margin-top:.5rem;">
-    {% for p in firm.portfolio %}<span class="chip">{% if p.website %}<a href="{{ p.website }}" target="_blank" rel="noopener">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</span>{% endfor %}
+<section class="section-pad" style="border-top:1px solid var(--ink);">
+  <div class="section-inner">
+    <div class="section-index">02 / THE PEOPLE</div>
+    <div class="section-head">
+      <h2>Investment <em class="serif">team.</em></h2>
+    </div>
+    <div class="table-shell" style="margin-top:36px;">
+      <div class="table-toolbar"><span class="tt-title"><em>{{ firm.team|length }}</em> public members</span></div>
+      <table class="data">
+        <thead><tr><th>Name</th><th>Title</th></tr></thead>
+        <tbody>
+          {% for m in firm.team %}
+          <tr><td><strong>{{ m.name }}</strong></td><td style="color:var(--muted);">{{ m.title }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
-</div>
+</section>
 {% endif %}
 
+<!-- FUNDING -->
+{% if firm.funding %}
+<section class="section-pad" style="border-top:1px solid var(--ink);">
+  <div class="section-inner">
+    <div class="section-index">03 / DEALS</div>
+    <div class="section-head">
+      <h2>Recent funding <em class="serif">events.</em></h2>
+    </div>
+    <div class="table-shell" style="margin-top:36px;">
+      <div class="table-toolbar"><span class="tt-title"><em>{{ firm.funding|length }}</em> trailing 12 months</span></div>
+      <table class="data">
+        <thead><tr><th>Date</th><th>Company</th><th>State</th><th>Amount</th><th>Stage</th></tr></thead>
+        <tbody>
+          {% for e in firm.funding %}
+          <tr>
+            <td class="mono-num">{{ e.date }}</td>
+            <td><strong>{{ e.name }}</strong></td>
+            <td>{{ e.state }}</td>
+            <td class="mono-num">{{ e.amount }}</td>
+            <td><span class="pill">{{ e.stage }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- PORTFOLIO -->
+{% if firm.portfolio %}
+<section class="section-pad" style="border-top:1px solid var(--ink);">
+  <div class="section-inner">
+    <div class="section-index">04 / HOLDINGS</div>
+    <div class="section-head">
+      <h2>Portfolio <em class="serif">companies.</em></h2>
+    </div>
+    <div class="chip-row" style="margin-top:36px;">
+      {% for p in firm.portfolio %}
+      <span class="pill port-pill">{% if p.website %}<a href="{{ p.website }}" target="_blank" rel="noopener">{{ p.name }} ↗</a>{% else %}{{ p.name }}{% endif %}</span>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- NEWS -->
 {% if firm.news %}
-<div class="card" style="margin-top:1rem;">
-  <h2>Recent News <span class="muted">({{ firm.news|length }})</span></h2>
-  <ul style="margin-top:.5rem;padding-left:1.2rem;color:var(--muted);">
-    {% for n in firm.news %}<li style="margin-bottom:.4rem;"><a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }}</a></li>{% endfor %}
-  </ul>
-</div>
+<section class="section-pad" style="border-top:1px solid var(--ink);">
+  <div class="section-inner">
+    <div class="section-index">05 / PRESS</div>
+    <div class="section-head">
+      <h2>Recent <em class="serif">news.</em></h2>
+    </div>
+    <div class="news-list" style="margin-top:36px;">
+      {% for n in firm.news %}
+      <a class="news-item" href="{{ n.url }}" target="_blank" rel="noopener">
+        <span class="news-arrow">→</span>
+        <span class="news-title">{{ n.title }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
 {% endif %}
 
-<p class="muted" style="margin-top:1.5rem;">Crawled at {{ firm.crawled_at }}</p>
+<style>
+.firm-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:clamp(36px,5vw,80px);align-items:start;}
+.firm-meta{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:22px;}
+.firm-web{font:700 13px var(--font-machine);color:var(--lime-muted);text-decoration:none;border-bottom:2px solid var(--orange);}
+.firm-web:hover{color:var(--ink);}
+.firm-desc{color:var(--muted);font-size:17px;max-width:640px;}
+.plain-list{list-style:none;color:var(--ink);font-size:15px;}
+.plain-list li{padding:8px 0;border-bottom:1px solid var(--line);}
+.plain-list li:last-child{border-bottom:none;}
+.muted-para{color:var(--muted);font-size:15px;}
+.chip-row{display:flex;flex-wrap:wrap;gap:10px;}
+.port-pill{padding:8px 12px;font-size:12px;}
+.news-list{display:flex;flex-direction:column;}
+.news-item{
+  display:flex;gap:16px;align-items:baseline;
+  padding:16px 4px;border-bottom:1px solid var(--line);
+  text-decoration:none;color:var(--ink);
+  transition:background .16s,padding-left .16s;
+}
+.news-item:hover{background:color-mix(in srgb,var(--lime) 8%,transparent);padding-left:12px;}
+.news-arrow{font:700 14px var(--font-machine);color:var(--orange);flex:none;}
+.news-title{font-size:16px;}
+@media(max-width:900px){.firm-hero{grid-template-columns:1fr;}}
+</style>
+
 {% endblock %}

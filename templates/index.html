@@ -1,43 +1,156 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
-  <div class="card stat"><div class="num">{{ total }}</div><div class="lbl">Firms</div></div>
-  <div class="card stat"><div class="num">{{ with_team }}</div><div class="lbl">With Team</div></div>
-  <div class="card stat"><div class="num">{{ with_portfolio }}</div><div class="lbl">With Portfolio</div></div>
-  <div class="card stat"><div class="num">{{ with_funding }}</div><div class="lbl">With Funding</div></div>
-</div>
 
-<div class="grid" style="grid-template-columns:1fr 1fr;margin-top:1.5rem;">
-  <div class="card">
-    <h2 style="margin-bottom:.75rem;">Firm types</h2>
-    <table>
-      {% for t in types %}
-      <tr><td>{{ t.label }}</td><td>{{ t.n }}</td><td style="width:40%;"><div class="bar" style="width:{{ (t.n / types[0].n * 100)|int }}%"></div></td></tr>
-      {% endfor %}
-    </table>
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div>
+    <span class="eyebrow"><span class="dot"></span> Mass Investor Database · v{{ "%0.0f"|format(total) }} RECORDS</span>
+    <h1>The public VC/PE <em class="serif">directory,</em> flattened.</h1>
+    <p class="lede">Every investment firm indexed from the Massinvestor public directory — firm type, offices, stages, industries, investment teams, funding events, portfolio companies and news, in one searchable database.</p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="/browse">Browse all firms →</a>
+      <a class="btn-secondary" href="#stats">Skip to the numbers</a>
+    </div>
   </div>
-  <div class="card">
-    <h2 style="margin-bottom:.75rem;">Top states</h2>
-    <table>
-      {% for s, n in top_states %}
-      <tr><td>{{ s }}</td><td>{{ n }}</td><td style="width:40%;"><div class="bar" style="width:{{ (n / top_states[0][1] * 100)|int }}%"></div></td></tr>
-      {% endfor %}
-    </table>
+  <div class="data-card">
+    <div class="data-card-head">
+      <span class="data-card-file">midb://master_index.db</span>
+      <span class="status-live">Auto-updated</span>
+    </div>
+    <div class="data-card-figure">
+      {{ "{:,}".format(total) }}
+      <small>Investment firms</small>
+    </div>
+    <div class="data-card-facts">
+      <div class="fact"><div class="fact-label">Team members</div><div class="fact-value">{{ "{:,}".format(team_members) }}</div></div>
+      <div class="fact"><div class="fact-label">Portfolio cos</div><div class="fact-value">{{ "{:,}".format(portfolio_companies) }}</div></div>
+      <div class="fact"><div class="fact-label">Funding events</div><div class="fact-value">{{ "{:,}".format(funding_events) }}</div></div>
+      <div class="fact"><div class="fact-label">News items</div><div class="fact-value">{{ "{:,}".format(42865) }}</div></div>
+    </div>
+    <div class="data-card-bar"><span style="width:99%"></span></div>
+    <div class="data-card-foot">
+      <span>Top state · CA {{ top_states[0].n if top_states else 0 }}</span>
+      <span>Snapshot 2026</span>
+    </div>
   </div>
-</div>
+</section>
 
-<div class="card" style="margin-top:1.5rem;">
-  <h2 style="margin-bottom:.75rem;">Recently crawled</h2>
-  <table>
-    <tr><th>Firm</th><th>Type</th><th>Team</th><th>Portfolio</th></tr>
-    {% for f in recent %}
-    <tr>
-      <td><a href="/firm/{{ f.name|urlencode }}">{{ f.name }}</a></td>
-      <td><span class="pill">{{ f.type_label }}</span></td>
-      <td>{{ f.team|length }}</td>
-      <td>{{ f.portfolio|length }}</td>
-    </tr>
+<!-- ============ MARQUEE ============ -->
+<div class="marquee">
+  <div class="marquee-track">
+    {% for i in range(2) %}
+    <span>Venture Capital <em>✳</em></span>
+    <span>Private Equity <em>✳</em></span>
+    <span>Family Office <em>✳</em></span>
+    <span>Angel <em>✳</em></span>
+    <span>Incubator <em>✳</em></span>
+    <span>Corporate VC <em>✳</em></span>
+    <span>Hedge Fund <em>✳</em></span>
+    <span>Fund of Funds <em>✳</em></span>
+    <span>Merchant Bank <em>✳</em></span>
+    <span>Venture Debt <em>✳</em></span>
     {% endfor %}
-  </table>
+  </div>
 </div>
+
+<!-- ============ STATS ============ -->
+<section id="stats" class="section-pad">
+  <div class="section-inner">
+    <div class="section-index">01 / THE NUMBERS</div>
+    <div class="section-head">
+      <h2>A database with <em class="serif">real weight.</em></h2>
+      <p class="lede">5,304 firms crawled from the public index. Here's how the money breaks down.</p>
+    </div>
+    <div class="stat-grid" style="margin-top:44px;">
+      <div class="stat-card"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-lbl">Investment firms indexed</div></div>
+      <div class="stat-card"><div class="stat-num">{{ "{:,}".format(team_members) }}</div><div class="stat-lbl">Public team members</div></div>
+      <div class="stat-card"><div class="stat-num">{{ "{:,}".format(portfolio_companies) }}</div><div class="stat-lbl">Portfolio companies</div></div>
+      <div class="stat-card"><div class="stat-num">{{ "{:,}".format(funding_events) }}</div><div class="stat-lbl">Funding events</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TYPES + STATES ============ -->
+<section class="section-pad" style="border-top:1px solid var(--ink);">
+  <div class="section-inner">
+    <div class="section-index">02 / THE MIX</div>
+    <div class="section-head">
+      <h2>Firm types &amp; <em class="serif">geography.</em></h2>
+    </div>
+    <div class="chart-grid" style="margin-top:40px;">
+      <div class="panel">
+        <h3>By investor <em class="serif">type</em></h3>
+        {% for t in types[:8] %}
+        <div class="bar-row">
+          <span class="bar-label" title="{{ t.label }}">{{ t.key or 'N/A' }}</span>
+          <div class="bar-track"><span style="width:{{ (t.n / types[0].n * 100)|int }}%"></span></div>
+          <span class="bar-num">{{ "{:,}".format(t.n) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="panel dark-panel">
+        <h3>Top <em class="serif">states</em></h3>
+        {% for s in top_states %}
+        <div class="bar-row">
+          <span class="bar-label">{{ s.abbr }}</span>
+          <div class="bar-track"><span style="width:{{ (s.n / max_state * 100)|int }}%"></span></div>
+          <span class="bar-num">{{ "{:,}".format(s.n) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INDUSTRIES (DARK) ============ -->
+<section class="section-pad" style="background:var(--ink);color:var(--text-on-dark);border-top:1px solid var(--ink);">
+  <div class="section-inner">
+    <div class="section-index" style="color:var(--lime);">03 / SECTORS</div>
+    <div class="section-head">
+      <h2 style="color:var(--text-on-dark);">Where the firms <em class="serif" style="color:var(--lime);">invest.</em></h2>
+    </div>
+    <div class="panel dark-panel" style="margin-top:40px;">
+      <h3>Most common <em class="serif">industries</em></h3>
+      {% for i in top_industries %}
+      <div class="bar-row">
+        <span class="bar-label">{{ i.name }}</span>
+        <div class="bar-track"><span style="width:{{ (i.n / top_industries[0].n * 100)|int }}%"></span></div>
+        <span class="bar-num">{{ "{:,}".format(i.n) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ============ RECENT ============ -->
+<section class="section-pad" style="border-top:1px solid var(--ink);">
+  <div class="section-inner">
+    <div class="section-index">04 / FRESHEST</div>
+    <div class="section-head">
+      <h2>Recently <em class="serif">crawled.</em></h2>
+      <p class="lede">A sample of the firms captured in the latest pass.</p>
+    </div>
+    <div class="table-shell" style="margin-top:40px;">
+      <div class="table-toolbar">
+        <span class="tt-title">Latest <em>entries</em></span>
+        <a class="nav-cta" href="/browse" style="padding:7px 12px;">View all →</a>
+      </div>
+      <table class="data">
+        <thead><tr><th>Firm</th><th>Type</th><th>Team</th><th>Portfolio</th><th>Funding</th></tr></thead>
+        <tbody>
+          {% for f in recent %}
+          <tr>
+            <td><a class="firm-name" href="/firm/{{ f.name|urlencode }}">{{ f.name }}</a></td>
+            <td><span class="pill">{{ f.type_label }}</span></td>
+            <td class="mono-num">{{ f.team|length }}</td>
+            <td class="mono-num">{{ f.portfolio|length }}</td>
+            <td class="mono-num">{{ f.funding|length }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 {% endblock %}

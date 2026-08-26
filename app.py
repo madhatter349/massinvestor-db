@@ -123,36 +123,49 @@ def firm_to_dict(row):
 def index():
     db = get_db()
     total = db.execute("SELECT COUNT(*) FROM firms").fetchone()[0]
+
     types = db.execute(
         "SELECT type_key, COUNT(*) n FROM firms GROUP BY type_key ORDER BY n DESC"
     ).fetchall()
+
     states = {}
     for r in db.execute("SELECT offices FROM firms"):
         for off in parse_json(r["offices"]):
             m = re.search(r"\b([A-Z]{2})\b(?:$|\s)", off)
             if m:
                 states[m.group(1)] = states.get(m.group(1), 0) + 1
-    top_states = sorted(states.items(), key=lambda x: -x[1])[:10]
-    with_team = db.execute(
-        "SELECT COUNT(*) FROM firms WHERE team_json != '[]'"
-    ).fetchone()[0]
-    with_funding = db.execute(
-        "SELECT COUNT(*) FROM firms WHERE funding_json != '[]'"
-    ).fetchone()[0]
-    with_portfolio = db.execute(
-        "SELECT COUNT(*) FROM firms WHERE portfolio_json != '[]'"
-    ).fetchone()[0]
+    top_states = sorted(states.items(), key=lambda x: -x[1])[:8]
+    max_state = top_states[0][1] if top_states else 1
+
+    industries = {}
+    for r in db.execute("SELECT industries FROM firms"):
+        for i in parse_json(r["industries"]):
+            industries[i] = industries.get(i, 0) + 1
+    top_industries = sorted(industries.items(), key=lambda x: -x[1])[:8]
+
+    team_members = 0
+    for r in db.execute("SELECT team_json FROM firms"):
+        team_members += len(parse_json(r["team_json"]))
+    portfolio_companies = 0
+    for r in db.execute("SELECT portfolio_json FROM firms"):
+        portfolio_companies += len(parse_json(r["portfolio_json"]))
+    funding_events = 0
+    for r in db.execute("SELECT funding_json FROM firms"):
+        funding_events += len(parse_json(r["funding_json"]))
+
     recent = db.execute(
         "SELECT * FROM firms ORDER BY crawled_at DESC LIMIT 8"
     ).fetchall()
     return render_template(
         "index.html",
         total=total,
+        team_members=team_members,
+        portfolio_companies=portfolio_companies,
+        funding_events=funding_events,
         types=[{"key": r["type_key"], "label": TYPE_LABELS.get(r["type_key"], r["type_key"] or "N/A"), "n": r["n"]} for r in types],
-        top_states=top_states,
-        with_team=with_team,
-        with_funding=with_funding,
-        with_portfolio=with_portfolio,
+        top_states=[{"abbr": s, "n": n} for s, n in top_states],
+        max_state=max_state,
+        top_industries=[{"name": i, "n": n} for i, n in top_industries],
         recent=[firm_to_dict(r) for r in recent],
     )
 
