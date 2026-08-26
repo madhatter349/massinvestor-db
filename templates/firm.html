@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="/browse" class="muted">&larr; Back</a>
+<div class="card" style="margin-top:1rem;">
+  <h1 style="font-size:1.6rem;">{{ firm.name }}</h1>
+  <div style="margin-top:.5rem;">
+    <span class="pill">{{ firm.type_label }}</span>
+    {% if firm.website %}<a href="{{ firm.website }}" target="_blank" rel="noopener" class="muted" style="margin-left:.75rem;">{{ firm.website }}</a>{% endif %}
+  </div>
+</div>
+
+{% if firm.offices %}
+<div class="card" style="margin-top:1rem;">
+  <h2>Offices</h2>
+  <p class="muted" style="margin-top:.5rem;">{{ firm.offices|join(', ') }}</p>
+</div>
+{% endif %}
+
+{% if firm.stages %}
+<div class="card" style="margin-top:1rem;">
+  <h2>Stages</h2>
+  <div class="chips" style="margin-top:.5rem;">{% for s in firm.stages %}<span class="chip">{{ s }}</span>{% endfor %}</div>
+</div>
+{% endif %}
+
+{% if firm.industries %}
+<div class="card" style="margin-top:1rem;">
+  <h2>Industries</h2>
+  <div class="chips" style="margin-top:.5rem;">{% for i in firm.industries %}<span class="chip">{{ i }}</span>{% endfor %}</div>
+</div>
+{% endif %}
+
+{% if firm.description %}
+<div class="card" style="margin-top:1rem;">
+  <h2>Description</h2>
+  <p style="margin-top:.5rem;color:var(--muted);">{{ firm.description }}</p>
+</div>
+{% endif %}
+
+{% if firm.team %}
+<div class="card" style="margin-top:1rem;">
+  <h2>Investment Team <span class="muted">({{ firm.team|length }})</span></h2>
+  <table style="margin-top:.5rem;">
+    <tr><th>Name</th><th>Title</th></tr>
+    {% for m in firm.team %}
+    <tr><td>{{ m.name }}</td><td class="muted">{{ m.title }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if firm.funding %}
+<div class="card" style="margin-top:1rem;">
+  <h2>Recent Funding Events <span class="muted">({{ firm.funding|length }})</span></h2>
+  <table style="margin-top:.5rem;">
+    <tr><th>Date</th><th>Company</th><th>State</th><th>Amount</th><th>Stage</th></tr>
+    {% for e in firm.funding %}
+    <tr>
+      <td class="muted">{{ e.date }}</td>
+      <td>{{ e.name }}</td>
+      <td>{{ e.state }}</td>
+      <td>{{ e.amount }}</td>
+      <td><span class="pill">{{ e.stage }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if firm.portfolio %}
+<div class="card" style="margin-top:1rem;">
+  <h2>Portfolio Companies <span class="muted">({{ firm.portfolio|length }})</span></h2>
+  <div class="chips" style="margin-top:.5rem;">
+    {% for p in firm.portfolio %}<span class="chip">{% if p.website %}<a href="{{ p.website }}" target="_blank" rel="noopener">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</span>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if firm.news %}
+<div class="card" style="margin-top:1rem;">
+  <h2>Recent News <span class="muted">({{ firm.news|length }})</span></h2>
+  <ul style="margin-top:.5rem;padding-left:1.2rem;color:var(--muted);">
+    {% for n in firm.news %}<li style="margin-bottom:.4rem;"><a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }}</a></li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<p class="muted" style="margin-top:1.5rem;">Crawled at {{ firm.crawled_at }}</p>
+{% endblock %}

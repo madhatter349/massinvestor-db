@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+  <div class="card stat"><div class="num">{{ total }}</div><div class="lbl">Firms</div></div>
+  <div class="card stat"><div class="num">{{ with_team }}</div><div class="lbl">With Team</div></div>
+  <div class="card stat"><div class="num">{{ with_portfolio }}</div><div class="lbl">With Portfolio</div></div>
+  <div class="card stat"><div class="num">{{ with_funding }}</div><div class="lbl">With Funding</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns:1fr 1fr;margin-top:1.5rem;">
+  <div class="card">
+    <h2 style="margin-bottom:.75rem;">Firm types</h2>
+    <table>
+      {% for t in types %}
+      <tr><td>{{ t.label }}</td><td>{{ t.n }}</td><td style="width:40%;"><div class="bar" style="width:{{ (t.n / types[0].n * 100)|int }}%"></div></td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h2 style="margin-bottom:.75rem;">Top states</h2>
+    <table>
+      {% for s, n in top_states %}
+      <tr><td>{{ s }}</td><td>{{ n }}</td><td style="width:40%;"><div class="bar" style="width:{{ (n / top_states[0][1] * 100)|int }}%"></div></td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="card" style="margin-top:1.5rem;">
+  <h2 style="margin-bottom:.75rem;">Recently crawled</h2>
+  <table>
+    <tr><th>Firm</th><th>Type</th><th>Team</th><th>Portfolio</th></tr>
+    {% for f in recent %}
+    <tr>
+      <td><a href="/firm/{{ f.name|urlencode }}">{{ f.name }}</a></td>
+      <td><span class="pill">{{ f.type_label }}</span></td>
+      <td>{{ f.team|length }}</td>
+      <td>{{ f.portfolio|length }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

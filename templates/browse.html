@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 style="margin-bottom:1rem;">Browse firms <span class="muted">({{ total }})</span></h2>
+<form method="get" style="margin-bottom:1rem;display:flex;gap:.5rem;">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search name, description, website..."
+         style="flex:1;background:#0b1220;border:1px solid var(--border);color:var(--text);padding:.6rem .8rem;border-radius:8px;">
+  <button type="submit" style="background:var(--accent);border:none;color:#0f172a;font-weight:600;padding:.6rem 1.2rem;border-radius:8px;cursor:pointer;">Search</button>
+</form>
+<div class="card">
+  <table>
+    <tr><th>Firm</th><th>Type</th><th>Location</th><th>Team</th><th>Portfolio</th></tr>
+    {% for f in firms %}
+    <tr>
+      <td><a href="/firm/{{ f.name|urlencode }}">{{ f.name }}</a></td>
+      <td><span class="pill">{{ f.type_label }}</span></td>
+      <td class="muted">{{ f.offices[:2]|join(', ') }}</td>
+      <td>{{ f.team|length }}</td>
+      <td>{{ f.portfolio|length }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+<div style="margin-top:1rem;display:flex;gap:1rem;align-items:center;">
+  {% if page > 1 %}<a href="/browse?q={{ q }}&page={{ page-1 }}">&larr; Prev</a>{% endif %}
+  <span class="muted">Page {{ page }} / {{ pages }}</span>
+  {% if page < pages %}<a href="/browse?q={{ q }}&page={{ page+1 }}">Next &rarr;</a>{% endif %}
+</div>
+{% endblock %}

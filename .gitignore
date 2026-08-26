@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+# DB is rebuilt by scraper.py; snapshot committed separately as release asset
+# massinvestor.db
+massinvestor.db
