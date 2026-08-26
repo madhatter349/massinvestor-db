@@ -63,3 +63,13 @@ DB_PATH=$PWD/massinvestor.db PORT=5000 ./venv/bin/python app.py
 ```
 
 Deployed on Railway: dashboard at the service URL.
+
+## Live deployment
+
+- **Dashboard:** https://dashboard-production-58d7.up.railway.app
+- **Health:** https://dashboard-production-58d7.up.railway.app/health
+
+The deployed app reads the SQLite DB from a Railway volume mounted at `/app/data`
+(`DB_PATH=/app/data/massinvestor.db`). The crawl result (5,304 firms) is uploaded
+to that volume; the app seeds an empty DB if the file is missing so deploys never
+fail on a fresh build.
