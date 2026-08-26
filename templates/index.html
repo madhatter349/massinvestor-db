@@ -62,10 +62,10 @@
       <p class="lede">5,304 firms crawled from the public index. Here's how the money breaks down.</p>
     </div>
     <div class="stat-grid" style="margin-top:44px;">
-      <div class="stat-card"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-lbl">Investment firms indexed</div></div>
-      <div class="stat-card"><div class="stat-num">{{ "{:,}".format(team_members) }}</div><div class="stat-lbl">Public team members</div></div>
-      <div class="stat-card"><div class="stat-num">{{ "{:,}".format(portfolio_companies) }}</div><div class="stat-lbl">Portfolio companies</div></div>
-      <div class="stat-card"><div class="stat-num">{{ "{:,}".format(funding_events) }}</div><div class="stat-lbl">Funding events</div></div>
+      <a class="stat-card" href="/browse"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-lbl">Investment firms indexed →</div></a>
+      <a class="stat-card" href="/browse?sort=team"><div class="stat-num">{{ "{:,}".format(team_members) }}</div><div class="stat-lbl">Public team members →</div></a>
+      <a class="stat-card" href="/browse?sort=portfolio"><div class="stat-num">{{ "{:,}".format(portfolio_companies) }}</div><div class="stat-lbl">Portfolio companies →</div></a>
+      <a class="stat-card" href="/browse?sort=funding"><div class="stat-num">{{ "{:,}".format(funding_events) }}</div><div class="stat-lbl">Funding events →</div></a>
     </div>
   </div>
 </section>
@@ -76,26 +76,27 @@
     <div class="section-index">02 / THE MIX</div>
     <div class="section-head">
       <h2>Firm types &amp; <em class="serif">geography.</em></h2>
+      <p class="lede">Every bar links straight into a filtered view of the dataset.</p>
     </div>
     <div class="chart-grid" style="margin-top:40px;">
       <div class="panel">
         <h3>By investor <em class="serif">type</em></h3>
         {% for t in types[:8] %}
-        <div class="bar-row">
+        <a class="bar-row" href="/browse?type={{ t.key }}">
           <span class="bar-label" title="{{ t.label }}">{{ t.key or 'N/A' }}</span>
           <div class="bar-track"><span style="width:{{ (t.n / types[0].n * 100)|int }}%"></span></div>
           <span class="bar-num">{{ "{:,}".format(t.n) }}</span>
-        </div>
+        </a>
         {% endfor %}
       </div>
       <div class="panel dark-panel">
         <h3>Top <em class="serif">states</em></h3>
         {% for s in top_states %}
-        <div class="bar-row">
+        <a class="bar-row" href="/browse?state={{ s.abbr }}">
           <span class="bar-label">{{ s.abbr }}</span>
           <div class="bar-track"><span style="width:{{ (s.n / max_state * 100)|int }}%"></span></div>
           <span class="bar-num">{{ "{:,}".format(s.n) }}</span>
-        </div>
+        </a>
         {% endfor %}
       </div>
     </div>
@@ -112,11 +113,11 @@
     <div class="panel dark-panel" style="margin-top:40px;">
       <h3>Most common <em class="serif">industries</em></h3>
       {% for i in top_industries %}
-      <div class="bar-row">
+      <a class="bar-row" href="/browse?industry={{ i.name }}">
         <span class="bar-label">{{ i.name }}</span>
         <div class="bar-track"><span style="width:{{ (i.n / top_industries[0].n * 100)|int }}%"></span></div>
         <span class="bar-num">{{ "{:,}".format(i.n) }}</span>
-      </div>
+      </a>
       {% endfor %}
     </div>
   </div>

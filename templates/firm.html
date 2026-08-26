@@ -4,7 +4,17 @@
 
 <section class="section-pad">
   <div class="section-inner">
-    <a class="btn-secondary" href="/browse" style="margin-bottom:30px;display:inline-block;">← Back to browse</a>
+
+    <nav class="crumb" aria-label="Breadcrumb">
+      <a href="/">Home</a><span>/</span><a href="/browse">Dataset</a><span>/</span><span class="crumb-cur">{{ firm.name }}</span>
+    </nav>
+
+    <div class="pn-nav" aria-label="Previous / next firm">
+      {% if prev_name %}<a class="pn-link" href="/firm/{{ prev_name|urlencode }}">← {{ prev_name|truncate(34) }}</a>
+      {% else %}<span class="pn-link is-empty"></span>{% endif %}
+      {% if next_name %}<a class="pn-link" href="/firm/{{ next_name|urlencode }}">{{ next_name|truncate(34) }} →</a>
+      {% else %}<span class="pn-link is-empty"></span>{% endif %}
+    </div>
 
     <!-- FIRM HEADER CARD -->
     <div class="firm-hero" style="margin-top:10px;">
@@ -165,7 +175,37 @@
 </section>
 {% endif %}
 
+<!-- RELATED -->
+{% if related %}
+<section class="section-pad" style="border-top:1px solid var(--ink);">
+  <div class="section-inner">
+    <div class="section-index">06 / SIMILAR</div>
+    <div class="section-head">
+      <h2>Firms like <em class="serif">{{ firm.name|truncate(28) }}.</em></h2>
+    </div>
+    <div class="related-grid" style="margin-top:36px;">
+      {% for r in related %}
+      <a class="related-card" href="/firm/{{ r.name|urlencode }}">
+        <span class="pill">{{ r.type_label }}</span>
+        <span class="rc-name">{{ r.name }}</span>
+        {% if r.industry_0 %}<span class="rc-industry">{{ r.industry_0 }}</span>{% endif %}
+        <span class="rc-go">Open →</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
 <style>
+.crumb{display:flex;align-items:center;gap:8px;font:600 11px var(--font-machine);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:22px;flex-wrap:wrap;}
+.crumb a{color:var(--lime-muted);text-decoration:none;}
+.crumb a:hover{color:var(--ink);text-decoration:underline;}
+.crumb .crumb-cur{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40vw;}
+.pn-nav{display:flex;justify-content:space-between;gap:16px;margin-bottom:28px;}
+.pn-link{font:700 12px var(--font-machine);text-decoration:none;color:var(--ink);border:1px solid var(--ink);background:var(--paper-raise);box-shadow:2px 2px 0 var(--ink);padding:9px 14px;max-width:44%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:transform .12s,box-shadow .12s;}
+.pn-link:hover{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink);}
+.pn-link.is-empty{visibility:hidden;}
 .firm-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:clamp(36px,5vw,80px);align-items:start;}
 .firm-meta{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:22px;}
 .firm-web{font:700 13px var(--font-machine);color:var(--lime-muted);text-decoration:none;border-bottom:2px solid var(--orange);}
@@ -187,7 +227,18 @@
 .news-item:hover{background:color-mix(in srgb,var(--lime) 8%,transparent);padding-left:12px;}
 .news-arrow{font:700 14px var(--font-machine);color:var(--orange);flex:none;}
 .news-title{font-size:16px;}
-@media(max-width:900px){.firm-hero{grid-template-columns:1fr;}}
+.related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:clamp(14px,2vw,24px);}
+.related-card{
+  display:flex;flex-direction:column;gap:8px;
+  background:var(--paper-raise);border:1px solid var(--ink);
+  box-shadow:var(--shadow-sm);padding:18px;text-decoration:none;color:var(--ink);
+  transition:box-shadow .16s,transform .16s;
+}
+.related-card:hover{box-shadow:var(--shadow-md);transform:translate(-3px,-3px);}
+.rc-name{font-size:17px;font-weight:700;line-height:1.15;}
+.rc-industry{color:var(--muted);font-size:13px;}
+.rc-go{font:700 10px var(--font-machine);letter-spacing:.1em;text-transform:uppercase;color:var(--orange);margin-top:auto;}
+@media(max-width:900px){.firm-hero{grid-template-columns:1fr;}.pn-link{max-width:48%;}}
 </style>
 
 {% endblock %}

@@ -1,83 +1,263 @@
 {% extends "base.html" %}
+{% block title %}Browse {{ "{:,}".format(total) }} Firms{% endblock %}
 {% block content %}
 
-<section class="section-pad">
+<section class="section-pad" style="padding-bottom:0;">
   <div class="section-inner">
-    <div class="section-index">02 / BROWSE</div>
+    <div class="section-index">02 / THE DATASET</div>
     <div class="section-head">
-      <h2>Search all <em class="serif">{{ "{:,}".format(total) }} firms.</em></h2>
+      <h2>Explore <em class="serif">{{ "{:,}".format(total) }} firms.</em></h2>
+      <p class="lede">Filter by investor type, state, industry or stage — then jump straight in.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ACTIVE FILTER CHIPS -->
+<div class="section-inner" style="padding-top:22px;padding-bottom:6px;">
+  <div class="active-chips">
+    {% if q %}<span class="chip filter-chip">“{{ q }}” <a href="{{ qs_link('/browse', q='') }}">✕</a></span>{% endif %}
+    {% if letter %}<span class="chip filter-chip">Letter {{ letter }} <a href="{{ qs_link('/browse', letter='') }}">✕</a></span>{% endif %}
+    {% for f in active_facets %}
+    <span class="chip filter-chip">{{ f.label }} <a href="{{ qs_link('/browse', **{f.kind: ''}) }}">✕</a></span>
+    {% endfor %}
+    {% if q or letter or active_facets or sort != 'name' %}
+    <a class="chip clear-all" href="/browse">Clear all filters</a>
+    {% endif %}
+    {% if active_facets or q or letter %}
+    <span class="chip result-chip">{{ "{:,}".format(total) }} matching</span>
+    {% else %}
+    <span class="chip result-chip">Showing {{ firms|length }} of {{ "{:,}".format(total) }}</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- EXPLORER GRID -->
+<div class="section-inner explorer">
+  <!-- SIDEBAR FILTERS -->
+  <aside class="filters" id="filtersPanel">
+    <div class="filters-head">
+      <span class="filters-title">Filters</span>
+      <button class="filters-close" id="filtersClose" aria-label="Close filters">✕</button>
     </div>
 
-    <form method="get" class="search-box" style="margin-top:36px;">
-      <div class="search-row">
-        <input type="text" name="q" value="{{ q }}" placeholder="Search name, description, website…" aria-label="Search firms">
-        <button type="submit" class="btn-primary">Search →</button>
+    <details class="filter-group" open>
+      <summary>Investor type</summary>
+      <div class="filter-list">
+        {% for t in facet_types[:12] %}
+        <label class="filter-opt">
+          <input type="checkbox" name="type" value="{{ t.key }}" onchange="toggleFacet('type','{{ t.key }}')" {% if t.key in types %}checked{% endif %}>
+          <span class="fo-name">{{ t.label }}</span>
+          <span class="fo-count">{{ "{:,}".format(t.n) }}</span>
+        </label>
+        {% endfor %}
       </div>
-    </form>
+    </details>
 
-    <div class="table-shell" style="margin-top:30px;">
-      <div class="table-toolbar">
-        <span class="tt-title"><em>{{ "{:,}".format(total) }}</em> records{% if q %} · matching “{{ q }}”{% endif %}</span>
-        <span class="tt-title" style="color:var(--text-dim-dark);">Sorted A → Z</span>
+    <details class="filter-group" open>
+      <summary>State</summary>
+      <div class="filter-list">
+        {% for s in facet_states[:12] %}
+        <label class="filter-opt">
+          <input type="checkbox" name="state" value="{{ s.key }}" onchange="toggleFacet('state','{{ s.key }}')" {% if s.key in states %}checked{% endif %}>
+          <span class="fo-name">{{ s.key }}</span>
+          <span class="fo-count">{{ "{:,}".format(s.n) }}</span>
+        </label>
+        {% endfor %}
       </div>
+    </details>
+
+    <details class="filter-group">
+      <summary>Industry</summary>
+      <div class="filter-list">
+        {% for i in facet_industries[:14] %}
+        <label class="filter-opt">
+          <input type="checkbox" name="industry" value="{{ i.key }}" onchange="toggleFacet('industry','{{ i.key }}')" {% if i.key in industries %}checked{% endif %}>
+          <span class="fo-name">{{ i.key }}</span>
+          <span class="fo-count">{{ "{:,}".format(i.n) }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </details>
+
+    <details class="filter-group">
+      <summary>Stage</summary>
+      <div class="filter-list">
+        {% for s in facet_stages[:12] %}
+        <label class="filter-opt">
+          <input type="checkbox" name="stage" value="{{ s.key }}" onchange="toggleFacet('stage','{{ s.key }}')" {% if s.key in stages %}checked{% endif %}>
+          <span class="fo-name">{{ s.key }}</span>
+          <span class="fo-count">{{ "{:,}".format(s.n) }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </details>
+  </aside>
+
+  <!-- RESULTS -->
+  <div class="results">
+    <!-- LETTER INDEX -->
+    <div class="letter-index" aria-label="Jump to letter">
+      <a href="{{ qs_link('/browse', letter='') }}" class="{{ 'li-active' if not letter }}">ALL</a>
+      <a href="{{ qs_link('/browse', letter='#') }}" class="{{ 'li-active' if letter == '#' }}">#</a>
+      {% for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
+      <a href="{{ qs_link('/browse', letter=l) }}" class="{{ 'li-active' if letter == l }}">{{ l }}</a>
+      {% endfor %}
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="table-toolbar explorer-toolbar">
+      <span class="tt-title"><em>{{ "{:,}".format(total) }}</em> records</span>
+      <div class="toolbar-right">
+        <button class="filter-toggle" id="filtersOpen" aria-label="Open filters">Filters ▾</button>
+        <label class="sort-label">
+          <span>Sort</span>
+          <select name="sort" id="sortSelect">
+            {% for k, v in sort_options.items() %}
+            <option value="{{ k }}" {% if sort == k %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="per-label">
+          <span>Per</span>
+          <select id="perSelect">
+            {% for p in [50, 100, 250] %}
+            <option value="{{ p }}" {% if per_page == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-shell" style="box-shadow:none;border-top:none;">
       <table class="data">
-        <thead><tr><th>Firm</th><th>Type</th><th>Location</th><th>Team</th><th>Portfolio</th></tr></thead>
+        <thead><tr>
+          <th>Firm</th><th>Type</th><th>Location</th><th>Team</th><th>Portfolio</th><th>Funding</th>
+        </tr></thead>
         <tbody>
           {% for f in firms %}
           <tr>
             <td><a class="firm-name" href="/firm/{{ f.name|urlencode }}">{{ f.name }}</a></td>
             <td><span class="pill">{{ f.type_label }}</span></td>
-            <td style="color:var(--muted);font-size:13px;">{{ f.offices[:2]|join(', ') }}</td>
+            <td class="loc-cell">{{ f.offices[:2]|join(', ') }}</td>
             <td class="mono-num">{{ f.team|length }}</td>
             <td class="mono-num">{{ f.portfolio|length }}</td>
+            <td class="mono-num">{{ f.funding|length }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="5" style="text-align:center;padding:44px;font:600 13px var(--font-machine);color:var(--muted);">No firms match that query.</td></tr>
+          <tr><td colspan="6" class="empty-cell">No firms match those filters.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
 
+    <!-- PAGINATION -->
     {% if pages > 1 %}
-    <nav class="pagination" aria-label="Pagination" style="margin-top:30px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      {% if page > 1 %}<a class="page-btn" href="/browse?q={{ q }}&page={{ page-1 }}">←</a>{% endif %}
+    <nav class="pagination" aria-label="Pagination">
+      {% if page > 1 %}<a class="page-btn" href="{{ qs_link('/browse', page=page-1) }}">←</a>{% endif %}
       {% set start = [1, page-3]|max %}
       {% set end = [pages, page+3]|min %}
       {% if start > 1 %}<span class="page-ellipsis">…</span>{% endif %}
       {% for p in range(start, end+1) %}
-        {% if p == page %}
-          <span class="page-btn page-active">{{ p }}</span>
-        {% else %}
-          <a class="page-btn" href="/browse?q={{ q }}&page={{ p }}">{{ p }}</a>
-        {% endif %}
+        {% if p == page %}<span class="page-btn page-active">{{ p }}</span>
+        {% else %}<a class="page-btn" href="{{ qs_link('/browse', page=p) }}">{{ p }}</a>{% endif %}
       {% endfor %}
       {% if end < pages %}<span class="page-ellipsis">…</span>{% endif %}
-      {% if page < pages %}<a class="page-btn" href="/browse?q={{ q }}&page={{ page+1 }}">→</a>{% endif %}
+      {% if page < pages %}<a class="page-btn" href="{{ qs_link('/browse', page=page+1) }}">→</a>{% endif %}
     </nav>
     {% endif %}
   </div>
-</section>
+</div>
 
 <style>
-.search-row{display:flex;gap:14px;}
-.search-row input{
-  flex:1;background:var(--paper-raise);border:1px solid var(--ink);
-  box-shadow:var(--shadow-sm);
-  color:var(--ink);font-family:var(--font-human);font-size:16px;
-  padding:13px 16px;
+.active-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper-raise);border:1px solid var(--ink);box-shadow:2px 2px 0 var(--ink);padding:5px 10px;font:600 11px var(--font-machine);}
+.chip a{color:var(--ink);text-decoration:none;font-weight:700;}
+.filter-chip a:hover{color:var(--orange);}
+.clear-all{color:var(--orange);text-decoration:none;}
+.result-chip{background:var(--lime);color:var(--ink);border-color:var(--ink);}
+
+.explorer{display:grid;grid-template-columns:280px 1fr;gap:clamp(20px,3vw,40px);align-items:start;padding-top:26px;padding-bottom:clamp(60px,7vw,100px);}
+.filters{position:sticky;top:92px;background:var(--paper-raise);border:1px solid var(--ink);box-shadow:var(--shadow-sm);}
+.filters-head{display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:var(--paper);padding:12px 16px;}
+.filters-title{font:700 11px var(--font-machine);letter-spacing:.12em;text-transform:uppercase;}
+.filters-close{display:none;background:none;border:none;color:var(--paper);font-size:16px;cursor:pointer;}
+.filter-group{border-bottom:1px solid var(--line);}
+.filter-group summary{cursor:pointer;font:700 11px var(--font-machine);letter-spacing:.1em;text-transform:uppercase;color:var(--ink);padding:12px 16px;list-style:none;display:flex;justify-content:space-between;align-items:center;}
+.filter-group summary::after{content:"+";font-weight:700;color:var(--lime-muted);}
+.filter-group[open] summary::after{content:"–";}
+.filter-list{max-height:300px;overflow-y:auto;padding:0 16px 12px;}
+.filter-opt{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--line);}
+.filter-opt:last-child{border-bottom:none;}
+.filter-opt input{accent-color:var(--lime);width:15px;height:15px;cursor:pointer;}
+.fo-name{flex:1;font-size:13px;}
+.fo-count{font:600 10px var(--font-machine);color:var(--muted);}
+
+.letter-index{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+.letter-index a{
+  font:700 11px var(--font-machine);text-decoration:none;color:var(--ink);
+  border:1px solid var(--ink);background:var(--paper-raise);
+  padding:5px 8px;box-shadow:2px 2px 0 var(--ink);
+  transition:transform .12s,box-shadow .12s;
 }
-.search-row input:focus{outline:3px solid var(--orange);outline-offset:2px;}
-.page-btn{
-  font:700 12px var(--font-machine);
-  background:var(--paper-raise);border:1px solid var(--ink);
-  box-shadow:2px 2px 0 var(--ink);
-  padding:8px 12px;text-decoration:none;color:var(--ink);
-  transition:box-shadow .16s,transform .16s,background .16s;
-}
+.letter-index a:hover{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink);}
+.letter-index .li-active{background:var(--ink);color:var(--lime);}
+
+.explorer-toolbar{flex-wrap:nowrap;}
+.toolbar-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.filter-toggle{display:none;background:var(--lime);border:1px solid var(--ink);color:var(--ink);font:800 11px var(--font-machine);padding:7px 12px;cursor:pointer;box-shadow:2px 2px 0 var(--ink);}
+.sort-label,.per-label{display:inline-flex;align-items:center;gap:6px;}
+.sort-label span,.per-label span{font:700 9px var(--font-machine);letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim-dark);}
+.sort-label select,.per-label select{background:var(--ink);color:var(--lime);border:1px solid var(--ink);font:600 11px var(--font-machine);padding:6px 8px;}
+
+.loc-cell{color:var(--muted);font-size:13px;max-width:220px;}
+.empty-cell{text-align:center;padding:48px;font:600 13px var(--font-machine);color:var(--muted);}
+
+.pagination{margin-top:26px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;}
+.page-btn{font:700 12px var(--font-machine);background:var(--paper-raise);border:1px solid var(--ink);box-shadow:2px 2px 0 var(--ink);padding:8px 12px;text-decoration:none;color:var(--ink);transition:box-shadow .16s,transform .16s;}
 .page-btn:hover{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink);}
-.page-active{background:var(--lime);color:var(--ink);font-weight:700;}
+.page-active{background:var(--lime);color:var(--ink);}
 .page-ellipsis{font:700 12px var(--font-machine);color:var(--muted);padding:0 4px;}
-@media(max-width:560px){.search-row{flex-direction:column;}.search-row .btn-primary{width:100%;}}
+
+@media(max-width:900px){
+  .explorer{grid-template-columns:1fr;}
+  .filters{position:fixed;top:0;left:0;bottom:0;width:min(340px,86vw);z-index:80;overflow-y:auto;transform:translateX(-105%);transition:transform .25s ease;box-shadow:var(--shadow-lg);}
+  .filters.open{transform:translateX(0);}
+  .filters-close{display:block;}
+  .filter-toggle{display:inline-flex;align-items:center;gap:6px;}
+  .explorer-toolbar{flex-wrap:wrap;}
+}
+@media(max-width:560px){
+  .toolbar-right{width:100%;justify-content:space-between;}
+  .letter-index{justify-content:center;}
+}
 </style>
+
+<script>
+function toggleFacet(kind, value){
+  var url = new URL(window.location.href);
+  var vals = url.searchParams.getAll(kind);
+  var idx = vals.indexOf(value);
+  if(idx >= 0){ url.searchParams.delete(kind); vals.splice(idx,1); vals.forEach(function(v){ url.searchParams.append(kind, v); }); }
+  else { url.searchParams.append(kind, value); }
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+}
+document.getElementById('sortSelect').addEventListener('change', function(){
+  var url = new URL(window.location.href);
+  url.searchParams.set('sort', this.value);
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+});
+document.getElementById('perSelect').addEventListener('change', function(){
+  var url = new URL(window.location.href);
+  url.searchParams.set('per', this.value);
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+});
+var filtersPanel = document.getElementById('filtersPanel');
+document.getElementById('filtersOpen').addEventListener('click', function(){ filtersPanel.classList.add('open'); });
+document.getElementById('filtersClose').addEventListener('click', function(){ filtersPanel.classList.remove('open'); });
+</script>
 
 {% endblock %}
