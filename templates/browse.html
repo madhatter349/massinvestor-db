@@ -14,20 +14,16 @@
 
 <!-- ACTIVE FILTER CHIPS -->
 <div class="section-inner" style="padding-top:22px;padding-bottom:6px;">
-  <div class="active-chips">
-    {% if q %}<span class="chip filter-chip">“{{ q }}” <a href="{{ qs_link('/browse', q='') }}">✕</a></span>{% endif %}
-    {% if letter %}<span class="chip filter-chip">Letter {{ letter }} <a href="{{ qs_link('/browse', letter='') }}">✕</a></span>{% endif %}
+  <div class="active-chips" id="activeChips">
+    {% if q %}<span class="chip filter-chip" data-remove="q">“{{ q }}” <a href="#" data-remove="q">✕</a></span>{% endif %}
+    {% if letter %}<span class="chip filter-chip" data-remove="letter">Letter {{ letter }} <a href="#" data-remove="letter">✕</a></span>{% endif %}
     {% for f in active_facets %}
-    <span class="chip filter-chip">{{ f.label }} <a href="{{ qs_link('/browse', **{f.kind: ''}) }}">✕</a></span>
+    <span class="chip filter-chip" data-remove="{{ f.kind }}:{{ f.value }}">{{ f.label }} <a href="#" data-remove="{{ f.kind }}:{{ f.value }}">✕</a></span>
     {% endfor %}
     {% if q or letter or active_facets or sort != 'name' %}
-    <a class="chip clear-all" href="/browse">Clear all filters</a>
+    <a class="chip clear-all" href="#" id="clearAll">Clear all filters</a>
     {% endif %}
-    {% if active_facets or q or letter %}
-    <span class="chip result-chip">{{ "{:,}".format(total) }} matching</span>
-    {% else %}
-    <span class="chip result-chip">Showing {{ firms|length }} of {{ "{:,}".format(total) }}</span>
-    {% endif %}
+    <span class="chip result-chip" id="resultChip">{{ "{:,}".format(total) }} matching</span>
   </div>
 </div>
 
@@ -45,7 +41,7 @@
       <div class="filter-list">
         {% for t in facet_types[:12] %}
         <label class="filter-opt">
-          <input type="checkbox" name="type" value="{{ t.key }}" onchange="toggleFacet('type','{{ t.key }}')" {% if t.key in types %}checked{% endif %}>
+          <input type="checkbox" name="type" value="{{ t.key }}" class="facet-cb" data-kind="type" {% if t.key in types %}checked{% endif %}>
           <span class="fo-name">{{ t.label }}</span>
           <span class="fo-count">{{ "{:,}".format(t.n) }}</span>
         </label>
@@ -58,7 +54,7 @@
       <div class="filter-list">
         {% for s in facet_states[:12] %}
         <label class="filter-opt">
-          <input type="checkbox" name="state" value="{{ s.key }}" onchange="toggleFacet('state','{{ s.key }}')" {% if s.key in states %}checked{% endif %}>
+          <input type="checkbox" name="state" value="{{ s.key }}" class="facet-cb" data-kind="state" {% if s.key in states %}checked{% endif %}>
           <span class="fo-name">{{ s.key }}</span>
           <span class="fo-count">{{ "{:,}".format(s.n) }}</span>
         </label>
@@ -71,7 +67,7 @@
       <div class="filter-list">
         {% for i in facet_industries[:14] %}
         <label class="filter-opt">
-          <input type="checkbox" name="industry" value="{{ i.key }}" onchange="toggleFacet('industry','{{ i.key }}')" {% if i.key in industries %}checked{% endif %}>
+          <input type="checkbox" name="industry" value="{{ i.key }}" class="facet-cb" data-kind="industry" {% if i.key in industries %}checked{% endif %}>
           <span class="fo-name">{{ i.key }}</span>
           <span class="fo-count">{{ "{:,}".format(i.n) }}</span>
         </label>
@@ -84,7 +80,7 @@
       <div class="filter-list">
         {% for s in facet_stages[:12] %}
         <label class="filter-opt">
-          <input type="checkbox" name="stage" value="{{ s.key }}" onchange="toggleFacet('stage','{{ s.key }}')" {% if s.key in stages %}checked{% endif %}>
+          <input type="checkbox" name="stage" value="{{ s.key }}" class="facet-cb" data-kind="stage" {% if s.key in stages %}checked{% endif %}>
           <span class="fo-name">{{ s.key }}</span>
           <span class="fo-count">{{ "{:,}".format(s.n) }}</span>
         </label>
@@ -96,17 +92,17 @@
   <!-- RESULTS -->
   <div class="results">
     <!-- LETTER INDEX -->
-    <div class="letter-index" aria-label="Jump to letter">
-      <a href="{{ qs_link('/browse', letter='') }}" class="{{ 'li-active' if not letter }}">ALL</a>
-      <a href="{{ qs_link('/browse', letter='#') }}" class="{{ 'li-active' if letter == '#' }}">#</a>
+    <div class="letter-index" id="letterIndex" aria-label="Jump to letter">
+      <a href="#" data-letter="" class="{{ 'li-active' if not letter }}">ALL</a>
+      <a href="#" data-letter="#" class="{{ 'li-active' if letter == '#' }}">#</a>
       {% for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
-      <a href="{{ qs_link('/browse', letter=l) }}" class="{{ 'li-active' if letter == l }}">{{ l }}</a>
+      <a href="#" data-letter="{{ l }}" class="{{ 'li-active' if letter == l }}">{{ l }}</a>
       {% endfor %}
     </div>
 
     <!-- TOOLBAR -->
     <div class="table-toolbar explorer-toolbar">
-      <span class="tt-title"><em>{{ "{:,}".format(total) }}</em> records</span>
+      <span class="tt-title"><em id="totalLabel">{{ "{:,}".format(total) }}</em> records</span>
       <div class="toolbar-right">
         <button class="filter-toggle" id="filtersOpen" aria-label="Open filters">Filters ▾</button>
         <label class="sort-label">
@@ -129,12 +125,12 @@
     </div>
 
     <!-- TABLE -->
-    <div class="table-shell" style="box-shadow:none;border-top:none;">
+    <div class="table-shell" style="box-shadow:none;border-top:none;" id="tableShell">
       <table class="data">
         <thead><tr>
           <th>Firm</th><th>Type</th><th>Location</th><th>Team</th><th>Portfolio</th><th>Funding</th>
         </tr></thead>
-        <tbody>
+        <tbody id="firmRows">
           {% for f in firms %}
           <tr>
             <td><a class="firm-name" href="/firm/{{ f.name|urlencode }}">{{ f.name }}</a></td>
@@ -152,20 +148,20 @@
     </div>
 
     <!-- PAGINATION -->
-    {% if pages > 1 %}
-    <nav class="pagination" aria-label="Pagination">
-      {% if page > 1 %}<a class="page-btn" href="{{ qs_link('/browse', page=page-1) }}">←</a>{% endif %}
+    <nav class="pagination" id="pagination" aria-label="Pagination">
+      {% if pages > 1 %}
+      {% if page > 1 %}<a class="page-btn" href="#" data-page="{{ page-1 }}">←</a>{% endif %}
       {% set start = [1, page-3]|max %}
       {% set end = [pages, page+3]|min %}
       {% if start > 1 %}<span class="page-ellipsis">…</span>{% endif %}
       {% for p in range(start, end+1) %}
         {% if p == page %}<span class="page-btn page-active">{{ p }}</span>
-        {% else %}<a class="page-btn" href="{{ qs_link('/browse', page=p) }}">{{ p }}</a>{% endif %}
+        {% else %}<a class="page-btn" href="#" data-page="{{ p }}">{{ p }}</a>{% endif %}
       {% endfor %}
       {% if end < pages %}<span class="page-ellipsis">…</span>{% endif %}
-      {% if page < pages %}<a class="page-btn" href="{{ qs_link('/browse', page=page+1) }}">→</a>{% endif %}
+      {% if page < pages %}<a class="page-btn" href="#" data-page="{{ page+1 }}">→</a>{% endif %}
+      {% endif %}
     </nav>
-    {% endif %}
   </div>
 </div>
 
@@ -234,27 +230,230 @@
 </style>
 
 <script>
-function toggleFacet(kind, value){
-  var url = new URL(window.location.href);
-  var vals = url.searchParams.getAll(kind);
-  var idx = vals.indexOf(value);
-  if(idx >= 0){ url.searchParams.delete(kind); vals.splice(idx,1); vals.forEach(function(v){ url.searchParams.append(kind, v); }); }
-  else { url.searchParams.append(kind, value); }
-  url.searchParams.delete('page');
-  window.location.href = url.toString();
+var state = {
+  q: {{ q|tojson }},
+  letter: {{ letter|tojson }},
+  types: {{ types|tojson }},
+  states: {{ states|tojson }},
+  industries: {{ industries|tojson }},
+  stages: {{ stages|tojson }},
+  sort: {{ sort|tojson }},
+  per: {{ per_page|tojson }},
+  page: {{ page|tojson }}
+};
+
+var TYPE_LABELS = {{ {
+  "VC":"Venture Capital","PE":"Private Equity","A":"Angel","I":"Incubator",
+  "MB":"Merchant Bank","VD":"Venture Debt","FI":"Family Investment Office",
+  "FOF":"Fund of Funds","ED":"Economic Development Office",
+  "TT":"Technology Transfer Office","CVC":"Corporate Venture Capital",
+  "SEC":"Secondary Purchaser","HF":"Hedge Fund/Mutual Fund"
+} | tojson }};
+
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+
+function paramsToQueryString(){
+  var p = new URLSearchParams();
+  if(state.q) p.set('q', state.q);
+  if(state.letter) p.set('letter', state.letter);
+  state.types.forEach(function(v){ p.append('type', v); });
+  state.states.forEach(function(v){ p.append('state', v); });
+  state.industries.forEach(function(v){ p.append('industry', v); });
+  state.stages.forEach(function(v){ p.append('stage', v); });
+  p.set('sort', state.sort);
+  p.set('per', state.per);
+  p.set('page', state.page);
+  return p.toString();
+}
+
+function pushUrl(){
+  var qs = paramsToQueryString();
+  var url = '/browse' + (qs ? '?' + qs : '');
+  try { history.pushState(state, '', url); } catch(e) {}
+}
+
+function fmt(n){ return Number(n).toLocaleString('en-US'); }
+
+function renderChips(activeFacets, total, hasQuery){
+  var chips = document.getElementById('activeChips');
+  var html = '';
+  if(state.q) html += '<span class="chip filter-chip" data-remove="q">“'+esc(state.q)+'” <a href="#" data-remove="q">✕</a></span>';
+  if(state.letter) html += '<span class="chip filter-chip" data-remove="letter">Letter '+esc(state.letter)+' <a href="#" data-remove="letter">✕</a></span>';
+  (activeFacets || []).forEach(function(f){
+    html += '<span class="chip filter-chip" data-remove="'+esc(f.kind)+':'+esc(f.value)+'">'+esc(f.label)+' <a href="#" data-remove="'+esc(f.kind)+':'+esc(f.value)+'">✕</a></span>';
+  });
+  if(state.q || state.letter || activeFacets.length || state.sort !== 'name')
+    html += '<a class="chip clear-all" href="#" id="clearAll">Clear all filters</a>';
+  html += '<span class="chip result-chip" id="resultChip">'+fmt(total)+' matching</span>';
+  chips.innerHTML = html;
+}
+
+function renderRows(results){
+  var tbody = document.getElementById('firmRows');
+  if(!results || results.length === 0){
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">No firms match those filters.</td></tr>';
+    return;
+  }
+  var html = '';
+  results.forEach(function(f){
+    var loc = (f.offices||[]).slice(0,2).join(', ');
+    html += '<tr>'
+      + '<td><a class="firm-name" href="/firm/'+encodeURIComponent(f.name)+'">'+esc(f.name)+'</a></td>'
+      + '<td><span class="pill">'+esc(f.type_label || f.type || 'N/A')+'</span></td>'
+      + '<td class="loc-cell">'+esc(loc)+'</td>'
+      + '<td class="mono-num">'+fmt(f.team_count)+'</td>'
+      + '<td class="mono-num">'+fmt(f.portfolio_count)+'</td>'
+      + '<td class="mono-num">'+fmt(f.funding_count)+'</td>'
+      + '</tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function renderPagination(page, pages){
+  var nav = document.getElementById('pagination');
+  if(pages <= 1){ nav.innerHTML = ''; return; }
+  var html = '';
+  if(page > 1) html += '<a class="page-btn" href="#" data-page="'+(page-1)+'">←</a>';
+  var start = Math.max(1, page-3), end = Math.min(pages, page+3);
+  if(start > 1) html += '<span class="page-ellipsis">…</span>';
+  for(var p = start; p <= end; p++){
+    if(p === page) html += '<span class="page-btn page-active">'+p+'</span>';
+    else html += '<a class="page-btn" href="#" data-page="'+p+'">'+p+'</a>';
+  }
+  if(end < pages) html += '<span class="page-ellipsis">…</span>';
+  if(page < pages) html += '<a class="page-btn" href="#" data-page="'+(page+1)+'">→</a>';
+  nav.innerHTML = html;
+}
+
+function setLoading(on){
+  var tbody = document.getElementById('firmRows');
+  if(on){
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;font:600 12px var(--font-machine);color:var(--muted);">Loading…</td></tr>';
+  }
+}
+
+function loadResults(){
+  setLoading(true);
+  var qs = paramsToQueryString();
+  fetch('/api/firms?' + qs)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      document.getElementById('totalLabel').textContent = fmt(d.total);
+      renderRows(d.results);
+      renderChips(d.query ? activeFacetsFromQuery(d.query) : [], d.total, false);
+      renderPagination(d.page, d.pages);
+      updateLetterIndex();
+      updateCheckboxes();
+      pushUrl();
+    })
+    .catch(function(){
+      setLoading(false);
+      var tbody = document.getElementById('firmRows');
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Error loading results.</td></tr>';
+    });
+}
+
+function activeFacetsFromQuery(q){
+  var out = [];
+  (q.types||[]).forEach(function(t){ out.push({kind:'type', value:t, label: TYPE_LABELS[t] || t || 'N/A'}); });
+  (q.states||[]).forEach(function(s){ out.push({kind:'state', value:s, label:s}); });
+  (q.industries||[]).forEach(function(i){ out.push({kind:'industry', value:i, label:i}); });
+  (q.stages||[]).forEach(function(s){ out.push({kind:'stage', value:s, label:s}); });
+  return out;
+}
+
+function updateLetterIndex(){
+  var links = document.querySelectorAll('#letterIndex a');
+  links.forEach(function(a){
+    a.classList.toggle('li-active', a.getAttribute('data-letter') === (state.letter || ''));
+  });
+}
+
+function updateCheckboxes(){
+  document.querySelectorAll('.facet-cb').forEach(function(cb){
+    var kind = cb.getAttribute('data-kind');
+    var val = cb.value;
+    var key = kind === 'industry' ? 'industries' : kind + 's';
+    cb.checked = state[key].indexOf(val) !== -1;
+  });
+}
+
+// --- event wiring ---
+document.addEventListener('click', function(e){
+  // filter chip removal
+  var rm = e.target.closest('[data-remove]');
+  if(rm && rm.closest('#activeChips')){
+    e.preventDefault();
+    var key = rm.getAttribute('data-remove');
+    if(key === 'q') state.q = '';
+    else if(key === 'letter') state.letter = '';
+    else {
+      var parts = key.split(':');
+      var kind = parts[0], value = parts.slice(1).join(':');
+      var arr = state[kind === 'industry' ? 'industries' : kind + 's'];
+      var idx = arr.indexOf(value);
+      if(idx >= 0) arr.splice(idx, 1);
+    }
+    state.page = 1;
+    loadResults();
+    return;
+  }
+  // clear all
+  var clear = e.target.closest('#clearAll');
+  if(clear){ e.preventDefault(); state.q=''; state.letter=''; state.types=[]; state.states=[]; state.industries=[]; state.stages=[]; state.sort='name'; state.page=1; loadResults(); return; }
+  // letter index
+  var li = e.target.closest('#letterIndex a');
+  if(li){
+    e.preventDefault();
+    state.letter = li.getAttribute('data-letter');
+    state.page = 1;
+    loadResults();
+    return;
+  }
+  // pagination
+  var pb = e.target.closest('#pagination a.page-btn');
+  if(pb){
+    e.preventDefault();
+    state.page = parseInt(pb.getAttribute('data-page'), 10);
+    loadResults();
+    return;
+  }
+});
+
+document.querySelectorAll('.facet-cb').forEach(function(cb){
+  cb.addEventListener('change', function(){
+    var kind = cb.getAttribute('data-kind');
+    var arr = state[kind === 'industry' ? 'industries' : kind + 's'];
+    var idx = arr.indexOf(cb.value);
+    if(cb.checked && idx === -1) arr.push(cb.value);
+    if(!cb.checked && idx >= 0) arr.splice(idx, 1);
+    state.page = 1;
+    loadResults();
+  });
+});
+
 document.getElementById('sortSelect').addEventListener('change', function(){
-  var url = new URL(window.location.href);
-  url.searchParams.set('sort', this.value);
-  url.searchParams.delete('page');
-  window.location.href = url.toString();
+  state.sort = this.value; state.page = 1; loadResults();
 });
 document.getElementById('perSelect').addEventListener('change', function(){
-  var url = new URL(window.location.href);
-  url.searchParams.set('per', this.value);
-  url.searchParams.delete('page');
-  window.location.href = url.toString();
+  state.per = parseInt(this.value, 10); state.page = 1; loadResults();
 });
+
+// back/forward button support
+window.addEventListener('popstate', function(e){
+  if(e.state){
+    state = e.state;
+    // resync selects
+    document.getElementById('sortSelect').value = state.sort;
+    document.getElementById('perSelect').value = state.per;
+    loadResults();
+  }
+});
+
 var filtersPanel = document.getElementById('filtersPanel');
 document.getElementById('filtersOpen').addEventListener('click', function(){ filtersPanel.classList.add('open'); });
 document.getElementById('filtersClose').addEventListener('click', function(){ filtersPanel.classList.remove('open'); });

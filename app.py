@@ -381,13 +381,22 @@ SORT_OPTIONS = {
 
 
 def order_clause(sort):
-    order_map = {
-        "name": "name ASC",
-        "name_desc": "name DESC",
-        "team": "team_json IS NOT NULL DESC, length(team_json::text) DESC, name ASC",
-        "portfolio": "length(portfolio_json::text) DESC, name ASC",
-        "funding": "length(funding_json::text) DESC, name ASC",
-    }
+    if is_pg():
+        order_map = {
+            "name": "name ASC",
+            "name_desc": "name DESC",
+            "team": "team_json IS NOT NULL DESC, length(team_json::text) DESC, name ASC",
+            "portfolio": "length(portfolio_json::text) DESC, name ASC",
+            "funding": "length(funding_json::text) DESC, name ASC",
+        }
+    else:
+        order_map = {
+            "name": "name ASC",
+            "name_desc": "name DESC",
+            "team": "(CASE WHEN team_json='[]' THEN 0 ELSE 1 END) DESC, LENGTH(team_json) DESC, name ASC",
+            "portfolio": "LENGTH(portfolio_json) DESC, name ASC",
+            "funding": "LENGTH(funding_json) DESC, name ASC",
+        }
     return order_map.get(sort, "name ASC")
 
 
