@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Flask dashboard for the Massinvestor public directory database."""
+"""Flask dashboard for the Massinvestor public directory database.
+
+Backend is PostgreSQL when DATABASE_URL is set (production), otherwise it
+falls back to the local SQLite file (DB_PATH) for dev.
+"""
 import json
 import os
 import re
@@ -8,6 +12,7 @@ import sqlite3
 from flask import Flask, abort, g, render_template, request
 from urllib.parse import urlencode
 
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "massinvestor.db"))
 
 SCHEMA = """
@@ -15,20 +20,22 @@ CREATE TABLE IF NOT EXISTS firms (
     name TEXT PRIMARY KEY,
     type_key TEXT,
     website TEXT,
-    offices TEXT,
-    stages TEXT,
-    industries TEXT,
+    offices JSONB,
+    stages JSONB,
+    industries JSONB,
     description TEXT,
-    team_json TEXT,
-    funding_json TEXT,
-    portfolio_json TEXT,
-    news_json TEXT,
+    team_json JSONB,
+    funding_json JSONB,
+    portfolio_json JSONB,
+    news_json JSONB,
     crawled_at TEXT
 );
 """
 
 
 def init_db():
+    if DATABASE_URL:
+        return
     os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(SCHEMA)
@@ -50,12 +57,99 @@ TYPE_LABELS = {
 }
 
 
+def get_pg_pool():
+    """Return a cached pg8000 connection pool (simple list)."""
+    pool = getattr(g, "_pg_pool", None)
+    if pool is None:
+        import pg8000.dbapi
+        from urllib.parse import urlparse, unquote
+        u = urlparse(DATABASE_URL)
+        pool = g._pg_pool = [pg8000.dbapi.connect(
+            host=u.hostname, port=u.port or 5432,
+            user=unquote(u.username) if u.username else "postgres",
+            password=unquote(u.password) if u.password else "",
+            database=(u.path or "/railway").lstrip("/"))]
+    return pool[0]
+
+
 def get_db():
     db = getattr(g, "_db", None)
     if db is None:
-        db = g._db = sqlite3.connect(DB_PATH)
-        db.row_factory = sqlite3.Row
+        if DATABASE_URL:
+            db = g._db = _PgConn(get_pg_pool())
+        else:
+            db = g._db = _SqliteConn(sqlite3.connect(DB_PATH))
     return db
+
+
+class _SqliteConn:
+    """Thin wrapper: sqlite3 connection with row factory."""
+
+    def __init__(self, conn):
+        self.conn = conn
+        self.conn.row_factory = sqlite3.Row
+
+    def execute(self, sql, params=None):
+        return self.conn.execute(sql, params or [])
+
+    def close(self):
+        self.conn.close()
+
+
+class _PgConn:
+    """Thin wrapper around a pg8000 connection; rows are dict-like.
+
+    Rewrites '?' placeholders to '%s' so the same SQL source works for both
+    SQLite and Postgres. Executes immediately and returns a _PgResult that
+    mimics sqlite3's fetchone()/fetchall()/iteration.
+    """
+
+    def __init__(self, conn):
+        self.conn = conn
+
+    def execute(self, sql, params=None):
+        sql = sql.replace("?", "%s")
+        cur = self.conn.cursor()
+        try:
+            cur.execute(sql, params or [])
+        except Exception:
+            self.conn.rollback()
+            raise
+        self.conn.commit()
+        cols = [d[0] for d in cur.description or []]
+        rows = cur.fetchall()
+        return _PgResult([_PgRow(dict(zip(cols, r))) for r in rows])
+
+    def close(self):
+        self.conn.close()
+
+
+class _PgResult:
+    """Mimics the sqlite3 row-result interface over a list of _PgRow."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
+
+    def fetchall(self):
+        return self._rows
+
+    def __iter__(self):
+        return iter(self._rows)
+
+
+class _PgRow(dict):
+    """dict-like row that also supports positional access row[0], row[1]..."""
+
+    __getattr__ = dict.get
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            keys = list(self.keys())
+            return dict.__getitem__(self, keys[key])
+        return dict.__getitem__(self, key)
 
 
 @app.teardown_appcontext
@@ -68,6 +162,8 @@ def close_db(exc):
 def parse_json(field):
     if not field:
         return []
+    if isinstance(field, (list, dict)):
+        return field
     try:
         return json.loads(field)
     except (ValueError, TypeError):
@@ -199,9 +295,99 @@ def parse_qset(value):
     return [v for v in value.split(",") if v]
 
 
-def is_list_facet(field, value):
-    """Return SQL fragment that matches a value inside the stored JSON list."""
-    return f"( ',' || substr({field}, 2, length({field}) - 2) || ',' LIKE '%,' || ? || ',%' )"
+def is_pg():
+    return bool(DATABASE_URL)
+
+
+def is_list_facet(field, value, delim=","):
+    """Match a value inside a JSON array (or slash-delimited) column.
+
+    Dialect-aware:
+    - Postgres (JSONB columns): use jsonb_array_elements_text for exact element
+      equality, so "Information Technology" and "Palo Alto, CA" match exactly.
+    - SQLite (text columns storing JSON arrays): strip brackets + quotes and
+      delimited-match the token.
+    - type_key (plain slash-delimited string in both): tokenize on '/'.
+    """
+    if is_pg():
+        if delim == "/":
+            return f"( ',' || replace({field}, '/', ',') || ',' LIKE '%,' || %s || ',%' )"
+        return f"( EXISTS (SELECT 1 FROM jsonb_array_elements_text({field}) AS _v WHERE _v = %s) )"
+    if delim == "/":
+        return f"( ',' || replace({field}, '/', ',') || ',' LIKE '%,' || ? || ',%' )"
+    body = f"replace(replace(substr({field}, 2, length({field}) - 2), '\"', ''), char(10), ' ')"
+    return f"( ',' || {body} || ',' LIKE '%,' || ? || ',%' )"
+
+
+def state_where(st, param_style="?"):
+    """Match a US state code inside an office-location JSON array.
+
+    Postgres: an office element is exactly 'ST', or ends with ', ST' or
+    ', ST <zip>'. SQLite: LIKE on the raw JSON text.
+    """
+    if is_pg():
+        return (
+            "( EXISTS (SELECT 1 FROM jsonb_array_elements_text(offices) AS _v "
+            " WHERE _v = %s OR _v LIKE '%, ' || %s OR _v LIKE '%, ' || %s || ' %') )"
+        )
+    return "( offices LIKE ? OR offices LIKE ? )"
+
+
+def build_filters(q, letter, types, states, industries, stages):
+    """Shared WHERE-building for /browse and /api/firms.
+
+    Returns (where_sql_list, params). Placeholders match the active backend.
+    """
+    pg = is_pg()
+    ph = "%s" if pg else "?"
+    like = lambda s: f"{ph}"  # placeholder is uniform
+    where, params = [], []
+    if q:
+        where.append(f"(name LIKE {ph} OR description LIKE {ph} OR website LIKE {ph} OR offices LIKE {ph})")
+        lq = f"%{q}%"
+        params += [lq, lq, lq, lq]
+    if letter:
+        if letter == "#":
+            if pg:
+                where.append("(name ~ '^[0-9]')")
+            else:
+                where.append("(name GLOB '[0-9]*' OR name GLOB '##*')")
+        else:
+            where.append(f"name LIKE {ph}")
+            params.append(f"{letter}%")
+    for t in types:
+        where.append(is_list_facet("type_key", t, delim="/"))
+        params.append(t)
+    for st in states:
+        where.append(state_where(st, ph))
+        params += [st, st, st] if pg else [f'%"{st} "%', f'%, {st} %']
+    for ind in industries:
+        where.append(is_list_facet("industries", ind))
+        params.append(ind)
+    for sg in stages:
+        where.append(is_list_facet("stages", sg))
+        params.append(sg)
+    return where, params
+
+
+SORT_OPTIONS = {
+    "name": "Firm name (A–Z)",
+    "name_desc": "Firm name (Z–A)",
+    "team": "Team size (largest)",
+    "portfolio": "Portfolio count (largest)",
+    "funding": "Funding events (most)",
+}
+
+
+def order_clause(sort):
+    order_map = {
+        "name": "name ASC",
+        "name_desc": "name DESC",
+        "team": "team_json IS NOT NULL DESC, length(team_json::text) DESC, name ASC",
+        "portfolio": "length(portfolio_json::text) DESC, name ASC",
+        "funding": "length(funding_json::text) DESC, name ASC",
+    }
+    return order_map.get(sort, "name ASC")
 
 
 @app.route("/browse")
@@ -218,39 +404,9 @@ def browse():
     industries = parse_qset(request.args.getlist("industry"))
     stages = parse_qset(request.args.getlist("stage"))
 
-    where, params = [], []
-    if q:
-        where.append("(name LIKE ? OR description LIKE ? OR website LIKE ? OR offices LIKE ?)")
-        like = f"%{q}%"
-        params += [like, like, like, like]
-    if letter:
-        if letter == "#":
-            where.append("(name GLOB '[0-9]*' OR name GLOB '##*')")
-        else:
-            where.append("name LIKE ?")
-            params.append(f"{letter}%")
-    for t in types:
-        where.append(is_list_facet("type_key", t))
-        params.append(t)
-    for st in states:
-        where.append(is_list_facet("offices", st))
-        params.append(st)
-    for ind in industries:
-        where.append(is_list_facet("industries", ind))
-        params.append(ind)
-    for sg in stages:
-        where.append(is_list_facet("stages", sg))
-        params.append(sg)
+    where, params = build_filters(q, letter, types, states, industries, stages)
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
-
-    order_map = {
-        "name": "name ASC",
-        "name_desc": "name DESC",
-        "team": "(CASE WHEN team_json='[]' THEN 0 ELSE 1 END) DESC, LENGTH(team_json) DESC, name ASC",
-        "portfolio": "LENGTH(portfolio_json) DESC, name ASC",
-        "funding": "LENGTH(funding_json) DESC, name ASC",
-    }
-    order_sql = order_map.get(sort, "name ASC")
+    order_sql = order_clause(sort)
 
     total = db.execute(f"SELECT COUNT(*) FROM firms {where_sql}", params).fetchone()[0]
     rows = db.execute(
@@ -368,6 +524,92 @@ def health():
     db = get_db()
     total = db.execute("SELECT COUNT(*) FROM firms").fetchone()[0]
     return {"ok": True, "firms": total}
+
+
+@app.route("/api/firms")
+def api_firms():
+    """JSON API mirroring the browse filters.
+
+    Query params: q, letter, type, state, industry, stage (repeatable),
+    sort, page, per (max 500). Returns { total, page, pages, per, results: [] }.
+    """
+    db = get_db()
+    q = (request.args.get("q") or "").strip()
+    page = max(1, int(request.args.get("page", 1) or 1))
+    per = min(500, max(1, int(request.args.get("per", 50) or 50)))
+    sort = request.args.get("sort", "name")
+    letter = (request.args.get("letter") or "").strip().upper()
+    types = parse_qset(request.args.getlist("type"))
+    states = parse_qset(request.args.getlist("state"))
+    industries = parse_qset(request.args.getlist("industry"))
+    stages = parse_qset(request.args.getlist("stage"))
+
+    where, params = [], []
+    if q:
+        where.append("(name LIKE ? OR description LIKE ? OR website LIKE ? OR offices LIKE ?)")
+        like = f"%{q}%"
+        params += [like, like, like, like]
+    if letter:
+        if letter == "#":
+            where.append("(name GLOB '[0-9]*' OR name GLOB '##*')")
+        else:
+            where.append("name LIKE ?")
+            params.append(f"{letter}%")
+    for t in types:
+        where.append(is_list_facet("type_key", t, delim="/"))
+        params.append(t)
+    for st in states:
+        where.append("( offices LIKE ? OR offices LIKE ? )")
+        params += [f'%"{st} "%', f'%, {st} %']
+    for ind in industries:
+        where.append(is_list_facet("industries", ind))
+        params.append(ind)
+    for sg in stages:
+        where.append(is_list_facet("stages", sg))
+        params.append(sg)
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+    order_map = {
+        "name": "name ASC",
+        "name_desc": "name DESC",
+        "team": "(CASE WHEN team_json='[]' THEN 0 ELSE 1 END) DESC, LENGTH(team_json) DESC, name ASC",
+        "portfolio": "LENGTH(portfolio_json) DESC, name ASC",
+        "funding": "LENGTH(funding_json) DESC, name ASC",
+    }
+    order_sql = order_map.get(sort, "name ASC")
+
+    total = db.execute(f"SELECT COUNT(*) FROM firms {where_sql}", params).fetchone()[0]
+    rows = db.execute(
+        f"SELECT * FROM firms {where_sql} ORDER BY {order_sql} LIMIT ? OFFSET ?",
+        params + [per, (page - 1) * per],
+    ).fetchall()
+    pages = max(1, (total + per - 1) // per)
+    results = []
+    for r in rows:
+        f = firm_to_dict(r)
+        results.append({
+            "name": f["name"],
+            "type": f["type_key"],
+            "type_label": f["type_label"],
+            "website": f["website"],
+            "offices": f["offices"],
+            "stages": f["stages"],
+            "industries": f["industries"],
+            "team_count": len(f["team"]),
+            "portfolio_count": len(f["portfolio"]),
+            "funding_count": len(f["funding"]),
+        })
+    return {
+        "total": total,
+        "page": page,
+        "pages": pages,
+        "per": per,
+        "query": {
+            "q": q, "letter": letter, "types": types, "states": states,
+            "industries": industries, "stages": stages, "sort": sort,
+        },
+        "results": results,
+    }
 
 
 @app.errorhandler(404)
