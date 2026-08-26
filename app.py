@@ -336,11 +336,14 @@ def state_where(st, param_style="?"):
 def build_filters(q, letter, types, states, industries, stages):
     """Shared WHERE-building for /browse and /api/firms.
 
+    Semantics:
+    - Within a facet (types, states, industries, stages): OR the selected
+      values (a firm matches if it has ANY of the checked types, e.g. VC OR PE).
+    - Across facets: AND (VC/PE AND in CA AND in Software).
     Returns (where_sql_list, params). Placeholders match the active backend.
     """
     pg = is_pg()
     ph = "%s" if pg else "?"
-    like = lambda s: f"{ph}"  # placeholder is uniform
     where, params = [], []
     if q:
         office_col = "offices::text" if pg else "offices"
@@ -356,18 +359,23 @@ def build_filters(q, letter, types, states, industries, stages):
         else:
             where.append(f"name LIKE {ph}")
             params.append(f"{letter}%")
-    for t in types:
-        where.append(is_list_facet("type_key", t, delim="/"))
-        params.append(t)
-    for st in states:
-        where.append(state_where(st, ph))
-        params += [st, st, st] if pg else [f'%"{st} "%', f'%, {st} %']
-    for ind in industries:
-        where.append(is_list_facet("industries", ind))
-        params.append(ind)
-    for sg in stages:
-        where.append(is_list_facet("stages", sg))
-        params.append(sg)
+    if types:
+        clauses = [is_list_facet("type_key", t, delim="/") for t in types]
+        where.append("(" + " OR ".join(clauses) + ")")
+        params += types
+    if states:
+        clauses = [state_where(st, ph) for st in states]
+        where.append("(" + " OR ".join(clauses) + ")")
+        for st in states:
+            params += [st, st, st] if pg else [f'%"{st} "%', f'%, {st} %']
+    if industries:
+        clauses = [is_list_facet("industries", i) for i in industries]
+        where.append("(" + " OR ".join(clauses) + ")")
+        params += industries
+    if stages:
+        clauses = [is_list_facet("stages", s) for s in stages]
+        where.append("(" + " OR ".join(clauses) + ")")
+        params += stages
     return where, params
 
 

@@ -174,7 +174,7 @@
 .result-chip{background:var(--lime);color:var(--ink);border-color:var(--ink);}
 
 .explorer{display:grid;grid-template-columns:280px 1fr;gap:clamp(20px,3vw,40px);align-items:start;padding-top:26px;padding-bottom:clamp(60px,7vw,100px);}
-.filters{position:sticky;top:92px;background:var(--paper-raise);border:1px solid var(--ink);box-shadow:var(--shadow-sm);}
+.filters{background:var(--paper-raise);border:1px solid var(--ink);box-shadow:var(--shadow-sm);}
 .filters-head{display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:var(--paper);padding:12px 16px;}
 .filters-title{font:700 11px var(--font-machine);letter-spacing:.12em;text-transform:uppercase;}
 .filters-close{display:none;background:none;border:none;color:var(--paper);font-size:16px;cursor:pointer;}
@@ -182,7 +182,7 @@
 .filter-group summary{cursor:pointer;font:700 11px var(--font-machine);letter-spacing:.1em;text-transform:uppercase;color:var(--ink);padding:12px 16px;list-style:none;display:flex;justify-content:space-between;align-items:center;}
 .filter-group summary::after{content:"+";font-weight:700;color:var(--lime-muted);}
 .filter-group[open] summary::after{content:"–";}
-.filter-list{max-height:300px;overflow-y:auto;padding:0 16px 12px;}
+.filter-list{padding:0 16px 12px;}
 .filter-opt{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--line);}
 .filter-opt:last-child{border-bottom:none;}
 .filter-opt input{accent-color:var(--lime);width:15px;height:15px;cursor:pointer;}
@@ -457,6 +457,12 @@ window.addEventListener('popstate', function(e){
 var filtersPanel = document.getElementById('filtersPanel');
 document.getElementById('filtersOpen').addEventListener('click', function(){ filtersPanel.classList.add('open'); });
 document.getElementById('filtersClose').addEventListener('click', function(){ filtersPanel.classList.remove('open'); });
+
+// First paint from the server render; immediately refresh from the API so the
+// results always match the URL state (deep links, browser back/forward).
+document.addEventListener('DOMContentLoaded', function(){
+  loadResults();
+});
 </script>
 
 {% endblock %}
