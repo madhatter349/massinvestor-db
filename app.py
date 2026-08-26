@@ -221,9 +221,14 @@ def index():
     db = get_db()
     total = db.execute("SELECT COUNT(*) FROM firms").fetchone()[0]
 
-    types = db.execute(
-        "SELECT type_key, COUNT(*) n FROM firms GROUP BY type_key ORDER BY n DESC"
-    ).fetchall()
+    types = []
+    for tk in [r[0] for r in db.execute(
+            "SELECT DISTINCT type_key FROM firms WHERE type_key != ''").fetchall()]:
+        where_f = is_list_facet("type_key", tk, delim="/")
+        n = db.execute(f"SELECT COUNT(*) FROM firms WHERE {where_f}",
+                       [tk]).fetchone()[0]
+        types.append((tk, n))
+    types.sort(key=lambda x: -x[1])
 
     states = {}
     for r in db.execute("SELECT offices FROM firms"):
@@ -259,7 +264,7 @@ def index():
         team_members=team_members,
         portfolio_companies=portfolio_companies,
         funding_events=funding_events,
-        types=[{"key": r["type_key"], "label": TYPE_LABELS.get(r["type_key"], r["type_key"] or "N/A"), "n": r["n"]} for r in types],
+        types=[{"key": tk, "label": TYPE_LABELS.get(tk, tk or "N/A"), "n": n} for tk, n in types],
         top_states=[{"abbr": s, "n": n} for s, n in top_states],
         max_state=max_state,
         top_industries=[{"name": i, "n": n} for i, n in top_industries],
@@ -435,10 +440,18 @@ def browse():
     if page > pages:
         page = pages
 
-    # facet option lists (all available values, not just filtered)
-    facet_types = [{"key": r["type_key"], "label": TYPE_LABELS.get(r["type_key"], r["type_key"] or "N/A"), "n": r["n"]}
-                   for r in db.execute(
-                       "SELECT type_key, COUNT(*) n FROM firms WHERE type_key != '' GROUP BY type_key ORDER BY n DESC").fetchall()]
+    # facet option lists — counts must equal what the matching filter returns
+    # (token match on type_key, JSON element match on the list columns).
+    facet_types = []
+    type_keys = [r[0] for r in db.execute(
+        "SELECT DISTINCT type_key FROM firms WHERE type_key != ''").fetchall()]
+    for tk in type_keys:
+        where_f = is_list_facet("type_key", tk, delim="/")
+        n = db.execute(f"SELECT COUNT(*) FROM firms WHERE {where_f}",
+                       [tk]).fetchone()[0]
+        facet_types.append({"key": tk, "label": TYPE_LABELS.get(tk, tk), "n": n})
+    facet_types.sort(key=lambda x: -x["n"])
+
     state_rows = db.execute("SELECT offices FROM firms").fetchall()
     state_counts = {}
     for r in state_rows:
