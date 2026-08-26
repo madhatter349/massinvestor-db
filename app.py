@@ -343,7 +343,8 @@ def build_filters(q, letter, types, states, industries, stages):
     like = lambda s: f"{ph}"  # placeholder is uniform
     where, params = [], []
     if q:
-        where.append(f"(name LIKE {ph} OR description LIKE {ph} OR website LIKE {ph} OR offices LIKE {ph})")
+        office_col = "offices::text" if pg else "offices"
+        where.append(f"(name LIKE {ph} OR description LIKE {ph} OR website LIKE {ph} OR {office_col} LIKE {ph})")
         lq = f"%{q}%"
         params += [lq, lq, lq, lq]
     if letter:
@@ -544,39 +545,9 @@ def api_firms():
     industries = parse_qset(request.args.getlist("industry"))
     stages = parse_qset(request.args.getlist("stage"))
 
-    where, params = [], []
-    if q:
-        where.append("(name LIKE ? OR description LIKE ? OR website LIKE ? OR offices LIKE ?)")
-        like = f"%{q}%"
-        params += [like, like, like, like]
-    if letter:
-        if letter == "#":
-            where.append("(name GLOB '[0-9]*' OR name GLOB '##*')")
-        else:
-            where.append("name LIKE ?")
-            params.append(f"{letter}%")
-    for t in types:
-        where.append(is_list_facet("type_key", t, delim="/"))
-        params.append(t)
-    for st in states:
-        where.append("( offices LIKE ? OR offices LIKE ? )")
-        params += [f'%"{st} "%', f'%, {st} %']
-    for ind in industries:
-        where.append(is_list_facet("industries", ind))
-        params.append(ind)
-    for sg in stages:
-        where.append(is_list_facet("stages", sg))
-        params.append(sg)
+    where, params = build_filters(q, letter, types, states, industries, stages)
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
-
-    order_map = {
-        "name": "name ASC",
-        "name_desc": "name DESC",
-        "team": "(CASE WHEN team_json='[]' THEN 0 ELSE 1 END) DESC, LENGTH(team_json) DESC, name ASC",
-        "portfolio": "LENGTH(portfolio_json) DESC, name ASC",
-        "funding": "LENGTH(funding_json) DESC, name ASC",
-    }
-    order_sql = order_map.get(sort, "name ASC")
+    order_sql = order_clause(sort)
 
     total = db.execute(f"SELECT COUNT(*) FROM firms {where_sql}", params).fetchone()[0]
     rows = db.execute(
